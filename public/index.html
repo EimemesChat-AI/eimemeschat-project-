@@ -81,8 +81,7 @@
 
     /* ═══════════════════════════════════════════
        LOADING SCREEN
-       Prevents the login modal flashing on every
-       refresh when the user is already signed in.
+      
     ═══════════════════════════════════════════ */
     #loadingScreen {
       position: fixed; inset:0;
@@ -790,12 +789,13 @@ import {
 
 /* ── Firebase config ──────────────────────────────────────────── */
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_AUTH_DOMAIN",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+
+  apiKey: "AIzaSyBNQoS02esKxWHMsDvI9YW19cNaQ1At7jk",
+  authDomain: "project-eimemeschat.firebaseapp.com",
+  projectId: "project-eimemeschat",
+  storageBucket: "project-eimemeschat.firebasestorage.app",
+  messagingSenderId: "316802443791",
+  appId: "1:316802443791:web:98b40468c6ea5344b0117a"
 };
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
