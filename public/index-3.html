@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#F9F9F8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141414"  media="(prefers-color-scheme: dark)">
+  <title>EimemesChat AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════
+       VARIABLES
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg:         #F9F9F8;
+      --bg-alt:     #FFFFFF;
+      --sidebar-bg: #FFFFFF;
+      --border:     #E5E5E3;
+      --text-1:     #0D0D0D;
+      --text-2:     #404040;
+      --text-3:     #9B9B9B;
+      --bubble-u:   #EFEFEE;
+      --send-bg:    #0D0D0D;
+      --send-fg:    #FFFFFF;
+      --accent:     #E95B2E;
+      --accent-dim: rgba(233,91,46,0.12);
+      --input-bg:   #FFFFFF;
+      --code-bg:    #F6F6F4;
+      --sh-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --sh-md: 0 4px 20px rgba(0,0,0,0.10);
+      --sat: env(safe-area-inset-top,    0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:         #141414;
+        --bg-alt:     #1C1C1C;
+        --sidebar-bg: #1A1A1A;
+        --border:     #2A2A2A;
+        --text-1:     #EFEFEE;
+        --text-2:     #B0B0AE;
+        --text-3:     #6B6B68;
+        --bubble-u:   #2A2A2A;
+        --send-bg:    #EFEFEE;
+        --send-fg:    #0D0D0D;
+        --accent:     #FF6D3A;
+        --accent-dim: rgba(255,109,58,0.15);
+        --input-bg:   #1C1C1C;
+        --code-bg:    #1E1E1C;
+        --sh-sm: 0 1px 3px rgba(0,0,0,0.3);
+        --sh-md: 0 4px 20px rgba(0,0,0,0.4);
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { height:100%; }
+    body {
+      height: 100%;
+      min-height: -webkit-fill-available;
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      background: var(--bg);
+      color: var(--text-1);
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      overflow: hidden;
+    }
+    button { cursor:pointer; border:none; background:none; font-family:inherit; }
+    input, textarea { font-family:inherit; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+
+    /* ═══════════════════════════════════════════
+       LOADING SCREEN
+       Prevents the login modal flashing on every
+       refresh when the user is already signed in.
+    ═══════════════════════════════════════════ */
+    #loadingScreen {
+      position: fixed; inset:0;
+      background: var(--bg);
+      display: flex; align-items:center; justify-content:center;
+      z-index: 999;
+      transition: opacity 0.25s ease;
+    }
+    #loadingScreen.gone { opacity:0; pointer-events:none; }
+    .loader-wordmark {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 26px; font-weight: 700;
+      background: linear-gradient(135deg, #5e9cff, #c96eff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: breathe 1.6s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%,100% { opacity:1; }
+      50%      { opacity:0.35; }
+    }
+
+    /* ═══════════════════════════════════════════
+       APP SHELL
+    ═══════════════════════════════════════════ */
+    .app {
+      display: flex;
+      height: 100vh;
+      height: 100dvh;
+      height: -webkit-fill-available;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════ */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .sidebar-head {
+      display: flex; align-items:center; justify-content:space-between;
+      padding: calc(18px + var(--sat)) 16px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    /* Brand: styled "E" monogram + wordmark — no icon dependency */
+    .brand {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 18px; font-weight: 700;
+      color: var(--text-1);
+      letter-spacing: -0.3px;
+      display: flex; align-items:center; gap:8px;
+      user-select: none;
+    }
+    .brand-mark {
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #5e9cff, #c96eff);
+      display: flex; align-items:center; justify-content:center;
+      font-size: 13px; font-weight: 800;
+      color: white; flex-shrink:0;
+    }
+
+    .icon-btn {
+      width:34px; height:34px; border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      color:var(--text-2);
+      transition: background 0.15s, color 0.15s;
+      flex-shrink:0;
+    }
+    .icon-btn:hover { background:var(--bg); color:var(--text-1); }
+    .icon-btn svg   { width:18px; height:18px; }
+
+    .new-chat-btn {
+      margin: 12px 12px 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-2);
+      font-size: 14px; font-weight:500;
+      display: flex; align-items:center; gap:8px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .new-chat-btn:hover { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+    .new-chat-btn svg  { width:16px; height:16px; }
+
+    .history-scroll {
+      flex:1; overflow-y:auto; padding:10px 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .history-scroll::-webkit-scrollbar { width:4px; }
+    .history-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+    .history-label {
+      font-size:11px; font-weight:600;
+      letter-spacing:0.6px; text-transform:uppercase;
+      color:var(--text-3); padding:6px 8px 4px;
+    }
+
+    .history-item {
+      padding:9px 10px; border-radius:8px;
+      color:var(--text-2); font-size:14px; cursor:pointer;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      transition: background 0.12s;
+    }
+    .history-item:hover  { background:var(--bg); color:var(--text-1); }
+    .history-item.active { background:var(--accent-dim); color:var(--accent); font-weight:500; }
+
+    .history-empty { padding:8px 10px; font-size:13px; color:var(--text-3); }
+
+    .sidebar-foot {
+      border-top:1px solid var(--border);
+      padding:8px;
+      padding-bottom: calc(8px + var(--sab));
+      flex-shrink:0;
+    }
+    .sidebar-foot-btn {
+      width:100%; padding:9px 10px; border-radius:8px;
+      color:var(--text-2); font-size:14px;
+      display:flex; align-items:center; gap:10px;
+      transition: background 0.12s;
+    }
+    .sidebar-foot-btn:hover { background:var(--bg); color:var(--text-1); }
+    .sidebar-foot-btn svg  { width:16px; height:16px; flex-shrink:0; }
+
+    /* Mobile overlay mask */
+    .sidebar-mask {
+      display:none;
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.45);
+      z-index:29;
+      backdrop-filter:blur(3px);
+      -webkit-backdrop-filter:blur(3px);
+    }
+    .sidebar-mask.show { display:block; }
+
+    /* ═══════════════════════════════════════════
+       MAIN PANEL
+    ═══════════════════════════════════════════ */
+    .main {
+      flex:1; min-width:0;
+      display:flex; flex-direction:column;
+      overflow:hidden;
+      background:var(--bg);
+    }
+
+    /* ═══════════════════════════════════════════
+       VIEWS
+    ═══════════════════════════════════════════ */
+    .view { display:none; flex-direction:column; width:100%; height:100%; overflow:hidden; }
+    .view.active { display:flex; }
+
+    /* ═══════════════════════════════════════════
+       TOP BAR
+    ═══════════════════════════════════════════ */
+    .topbar {
+      display:flex; align-items:center;
+      height: calc(56px + var(--sat));
+      padding: var(--sat) 12px 0;
+      border-bottom:1px solid var(--border);
+      background:var(--bg);
+      gap:8px; flex-shrink:0;
+    }
+    /* Hidden on desktop, shown on mobile */
+    .menu-btn       { display:none; }
+    .topbar-newchat { display:none; }
+
+    .topbar-title {
+      flex:1; font-size:15px; font-weight:500; color:var(--text-2);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    /* ═══════════════════════════════════════════
+       MESSAGES AREA
+    ═══════════════════════════════════════════ */
+    .messages-wrap {
+      flex:1; overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:contain;
+    }
+    .messages-wrap::-webkit-scrollbar { width:5px; }
+    .messages-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+    .messages-inner {
+      max-width:740px; margin:0 auto;
+      padding:24px 20px 140px;
+      display:flex; flex-direction:column; gap:0;
+    }
+
+    /* ═══════════════════════════════════════════
+       WELCOME SCREEN
+    ═══════════════════════════════════════════ */
+    .welcome {
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      text-align:center;
+      padding:60px 20px 40px;
+      gap:10px;
+    }
+
+    /* Gradient title shared by welcome + login */
+    .gradient-title {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 700;
+      background: linear-gradient(135deg, #5e9cff, #c96eff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Large "E" monogram on welcome screen */
+    .welcome-mark {
+      width:56px; height:56px; border-radius:16px;
+      background:linear-gradient(135deg, #5e9cff, #c96eff);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Bricolage Grotesque',sans-serif;
+      font-size:26px; font-weight:800; color:white;
+      margin-bottom:8px;
+    }
+    .welcome-title { font-size:34px; letter-spacing:-0.5px; }
+    .welcome-sub   { font-size:16px; color:var(--text-3); font-weight:300; }
+
+    .chips {
+      display:flex; flex-wrap:wrap; gap:8px;
+      justify-content:center; margin-top:20px; max-width:560px;
+    }
+    .chip {
+      padding:9px 16px; border-radius:24px;
+      border:1px solid var(--border);
+      background:var(--bg-alt); color:var(--text-2);
+      font-size:13.5px; font-weight:400;
+      transition:border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .chip:hover { border-color:var(--accent); background:var(--accent-dim); color:var(--accent); }
+
+    /* ═══════════════════════════════════════════
+       MESSAGE ROWS
+    ═══════════════════════════════════════════ */
+    .msg-row { display:flex; gap:12px; padding:10px 0; }
+
+    /* User bubble */
+    .msg-row.user { justify-content:flex-end; }
+    .msg-row.user .msg-body {
+      background:var(--bubble-u);
+      border-radius:18px; border-bottom-right-radius:4px;
+      padding:11px 15px; max-width:75%;
+      color:var(--text-1); font-size:15px; line-height:1.55;
+      word-break:break-word; white-space:pre-wrap;
+    }
+
+    /* AI message */
+    .msg-row.ai { align-items:flex-start; }
+    /* "E" monogram avatar — no icon, no SVG, no broken image */
+    .ai-avatar {
+      width:28px; height:28px; border-radius:7px;
+      background:linear-gradient(135deg, #5e9cff, #c96eff);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Bricolage Grotesque',sans-serif;
+      font-size:12px; font-weight:800; color:white;
+      flex-shrink:0; margin-top:4px; user-select:none;
+    }
+    .msg-row.ai .msg-body {
+      flex:1; min-width:0;
+      color:var(--text-1); font-size:15px; line-height:1.65; padding:2px 0;
+    }
+
+    .msg-meta  { display:flex; align-items:center; gap:8px; margin-top:5px; }
+    .msg-time  { font-size:11.5px; color:var(--text-3); }
+    .model-badge {
+      font-size:10.5px; font-weight:600; letter-spacing:0.3px;
+      color:var(--accent); background:var(--accent-dim);
+      padding:2px 7px; border-radius:20px;
+    }
+
+    /* Markdown */
+    .msg-body h1,.msg-body h2,.msg-body h3 {
+      font-family:'Bricolage Grotesque',sans-serif;
+      font-weight:600; margin:14px 0 6px; color:var(--text-1);
+    }
+    .msg-body h1 { font-size:20px; }
+    .msg-body h2 { font-size:17px; }
+    .msg-body h3 { font-size:15px; }
+    .msg-body p  { margin:0 0 8px; }
+    .msg-body ul,.msg-body ol { padding-left:20px; margin-bottom:8px; }
+    .msg-body li { margin-bottom:4px; }
+    .msg-body strong { font-weight:600; }
+    .msg-body em     { font-style:italic; }
+    .msg-body a      { color:var(--accent); }
+    .msg-body code {
+      background:var(--code-bg); padding:1px 5px; border-radius:4px;
+      font-family:'Fira Code','Courier New',monospace;
+      font-size:13px; color:var(--text-1); border:1px solid var(--border);
+    }
+
+    /* Code blocks */
+    .code-block { background:var(--code-bg); border:1px solid var(--border); border-radius:10px; margin:10px 0; overflow:hidden; }
+    .code-block-head { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--border); }
+    .code-lang  { font-size:12px; font-weight:600; color:var(--text-3); text-transform:lowercase; }
+    .copy-btn   { font-size:12px; color:var(--text-3); padding:3px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-alt); transition:background 0.15s,color 0.15s; }
+    .copy-btn:hover  { background:var(--border); color:var(--text-1); }
+    .copy-btn.copied { color:var(--accent); border-color:var(--accent); }
+    .code-block pre  { padding:14px; overflow-x:auto; margin:0; }
+    .code-block pre code { background:none; border:none; padding:0; font-size:13.5px; line-height:1.6; white-space:pre; word-wrap:normal; }
+
+    /* ═══════════════════════════════════════════
+       TYPING INDICATOR
+    ═══════════════════════════════════════════ */
+    .typing-row  { display:flex; align-items:flex-start; gap:12px; padding:10px 0; }
+    .typing-dots { display:flex; gap:4px; padding:11px 14px; background:var(--bubble-u); border-radius:18px; width:fit-content; }
+    .typing-dot  { width:7px; height:7px; background:var(--text-3); border-radius:50%; animation:tdot 1.3s infinite ease-in-out; }
+    .typing-dot:nth-child(2) { animation-delay:.18s; }
+    .typing-dot:nth-child(3) { animation-delay:.36s; }
+    @keyframes tdot { 0%,60%,100% { transform:translateY(0); } 30% { transform:translateY(-5px); } }
+
+    /* ═══════════════════════════════════════════
+       INPUT AREA
+    ═══════════════════════════════════════════ */
+    .input-area {
+      flex-shrink:0;
+      padding:12px 16px;
+      padding-bottom: calc(12px + var(--sab));
+      background:var(--bg);
+      border-top:1px solid var(--border);
+    }
+    .input-inner { max-width:740px; margin:0 auto; position:relative; }
+    .input-box {
+      width:100%; background:var(--input-bg);
+      border:1px solid var(--border); border-radius:14px;
+      padding:13px 52px 13px 16px;
+      font-size:15px; color:var(--text-1);
+      outline:none; resize:none;
+      min-height:50px; max-height:200px;
+      line-height:1.5;
+      transition:border-color 0.15s, box-shadow 0.15s;
+      box-shadow:var(--sh-sm);
+      overflow-y:auto; -webkit-overflow-scrolling:touch;
+    }
+    .input-box:focus { border-color:var(--text-3); box-shadow:0 0 0 3px rgba(0,0,0,0.05); }
+    .input-box::placeholder { color:var(--text-3); }
+    .send-btn {
+      position:absolute; right:8px; bottom:8px;
+      width:34px; height:34px; border-radius:8px;
+      background:var(--send-bg); color:var(--send-fg);
+      display:flex; align-items:center; justify-content:center;
+      transition:opacity 0.15s, transform 0.1s;
+    }
+    .send-btn svg      { width:16px; height:16px; }
+    .send-btn:disabled { opacity:.28; cursor:default; }
+    .send-btn:not(:disabled):hover { transform:scale(1.06); }
+    .input-hint { text-align:center; font-size:11.5px; color:var(--text-3); margin-top:7px; }
+
+    /* ═══════════════════════════════════════════
+       SETTINGS VIEW
+    ═══════════════════════════════════════════ */
+    .settings-head {
+      display:flex; align-items:center; gap:12px;
+      padding: calc(14px + var(--sat)) 20px 14px;
+      border-bottom:1px solid var(--border); flex-shrink:0;
+    }
+    .settings-head-title { font-family:'Bricolage Grotesque',sans-serif; font-size:22px; font-weight:700; color:var(--text-1); }
+    .settings-body { flex:1; overflow-y:auto; padding:16px 20px 40px; -webkit-overflow-scrolling:touch; }
+    .settings-section { margin-bottom:24px; }
+    .settings-section-title { font-size:11px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--text-3); padding:0 4px; margin-bottom:8px; }
+    .settings-group { background:var(--bg-alt); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .settings-row { display:flex; align-items:center; gap:14px; padding:13px 16px; cursor:pointer; transition:background 0.12s; border-bottom:1px solid var(--border); }
+    .settings-row:last-child { border-bottom:none; }
+    .settings-row:hover { background:var(--bg); }
+    .settings-row-icon { width:34px; height:34px; border-radius:8px; background:var(--accent-dim); display:flex; align-items:center; justify-content:center; color:var(--accent); flex-shrink:0; }
+    .settings-row-icon svg { width:16px; height:16px; }
+    .settings-row-icon.red { background:rgba(224,82,82,.12); color:#e05252; }
+    .settings-row-text { flex:1; }
+    .settings-row-label { font-size:15px; font-weight:500; color:var(--text-1); }
+    .settings-row-desc  { font-size:12.5px; color:var(--text-3); margin-top:1px; }
+    .settings-row-label.red { color:#e05252; }
+    .settings-chevron svg { width:14px; height:14px; color:var(--text-3); }
+    .settings-footer { text-align:center; color:var(--text-3); font-size:12px; padding:30px 0 10px; }
+
+    /* ═══════════════════════════════════════════
+       LOGIN MODAL
+    ═══════════════════════════════════════════ */
+    .login-overlay {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.5);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+      z-index:100;
+      display:none; align-items:center; justify-content:center;
+      padding:20px;
+    }
+    .login-overlay.show { display:flex; }
+    .login-card {
+      background:var(--sidebar-bg); border:1px solid var(--border);
+      border-radius:30px; padding:30px;
+      width:100%; max-width:340px;
+      text-align:center; box-shadow:var(--sh-md);
+    }
+    .login-card h2  { font-size:26px; margin-bottom:4px; }
+    .login-sub      { font-size:14px; color:var(--text-3); margin-bottom:22px; }
+    .form-field {
+      width:100%; padding:14px; margin:6px 0;
+      border-radius:40px; border:1px solid var(--border);
+      background:var(--input-bg); color:var(--text-1);
+      font-size:16px; outline:none; transition:border-color .15s; display:block;
+    }
+    .form-field:focus { border-color:#0a84ff; }
+    .form-field::placeholder { color:var(--text-3); }
+    .btn-primary {
+      width:100%; padding:14px; margin:8px 0;
+      border-radius:40px; border:none;
+      background:#0a84ff; color:white;
+      font-size:16px; font-weight:600; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      transition:opacity .15s;
+    }
+    .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-primary:not(:disabled):hover { opacity:.88; }
+    .btn-secondary {
+      width:100%; padding:14px; margin:8px 0;
+      border-radius:40px; border:1px solid var(--border);
+      background:rgba(120,120,128,.12); color:var(--text-1);
+      font-size:16px; font-weight:500; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      transition:opacity .15s;
+    }
+    .btn-secondary:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-secondary:not(:disabled):hover { opacity:.8; }
+    .divider-line { display:flex; align-items:center; gap:10px; margin:12px 0; color:var(--text-3); font-size:14px; }
+    .divider-line::before,.divider-line::after { content:''; flex:1; height:1px; background:var(--border); }
+    .agree-row { display:flex; align-items:flex-start; gap:9px; margin:16px 0; text-align:left; }
+    .agree-row input[type=checkbox] { margin-top:3px; accent-color:#0a84ff; flex-shrink:0; }
+    .agree-row label { font-size:14px; color:var(--text-2); line-height:1.4; }
+    .agree-row a { color:#0a84ff; }
+    .auth-toggle { display:inline-block; color:#0a84ff; cursor:pointer; margin-top:12px; font-size:14px; font-weight:500; }
+    .auth-toggle:hover { text-decoration:underline; }
+    .auth-error { color:#ff6b6b; font-size:13.5px; margin-top:10px; min-height:20px; }
+
+    /* ═══════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════ */
+    .toast {
+      position:fixed; bottom:90px; left:50%;
+      transform:translateX(-50%) translateY(10px);
+      background:var(--text-1); color:var(--bg-alt);
+      font-size:13.5px; padding:9px 18px; border-radius:24px;
+      opacity:0; pointer-events:none;
+      transition:opacity .2s, transform .2s;
+      z-index:210; max-width:calc(100vw - 40px); text-align:center;
+    }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ═══════════════════════════════════════════
+       MOBILE  (≤ 768px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* Sidebar becomes a fixed overlay drawer */
+      .sidebar {
+        position:fixed; top:0; left:0; bottom:0;
+        width:280px; z-index:30;
+        transform:translateX(-100%);
+        box-shadow:var(--sh-md);
+      }
+      .sidebar.open { transform:translateX(0); }
+
+      /* Show hamburger & top-bar new-chat btn */
+      .menu-btn       { display:flex; }
+      .topbar-newchat { display:flex; }
+
+      .messages-inner { padding:20px 14px 140px; }
+      .input-area     { padding:10px 12px calc(10px + var(--sab)); }
+      .welcome-title  { font-size:26px; }
+      .chip           { font-size:13px; padding:8px 13px; }
+    }
+
+    /* ═══════════════════════════════════════════
+       DESKTOP  (> 768px)
+    ═══════════════════════════════════════════ */
+    @media (min-width: 769px) {
+      .menu-btn            { display:none !important; }
+      .topbar-newchat      { display:none !important; }
+      .sidebar-mask        { display:none !important; }
+      #closeSidebarBtn     { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading screen: hides login flash on refresh -->
+<div id="loadingScreen">
+  <div class="loader-wordmark">EimemesChat AI</div>
+</div>
+
+<!-- App -->
+<div class="app" id="app">
+
+  <!-- ──────────── SIDEBAR ──────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand"><div class="brand-mark">E</div>Eimemes</div>
+      <button class="icon-btn" id="closeSidebarBtn" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="new-chat-btn" id="newChatBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      New chat
+    </button>
+
+    <div class="history-scroll">
+      <div class="history-label">Recents</div>
+      <div id="historyList"></div>
+    </div>
+
+    <div class="sidebar-foot">
+      <button class="sidebar-foot-btn" id="settingsBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Settings
+      </button>
+    </div>
+  </aside>
+
+  <div class="sidebar-mask" id="sidebarMask"></div>
+
+  <!-- ──────────── MAIN ──────────── -->
+  <div class="main">
+
+    <!-- CHAT VIEW -->
+    <div class="view active" id="chatView">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="topbar-title" id="topbarTitle">EimemesChat</span>
+        <button class="icon-btn topbar-newchat" id="topbarNewChat" aria-label="New chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="messages-wrap" id="messagesWrap">
+        <div class="messages-inner" id="messagesInner"></div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-inner">
+          <textarea class="input-box" id="messageInput"
+            placeholder="Message Eimemes…" rows="1" aria-label="Message input"></textarea>
+          <button class="send-btn" id="sendBtn" disabled aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">EimemesChat may make mistakes. Verify important information.</div>
+      </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="settingsView">
+      <header class="settings-head">
+        <button class="icon-btn" id="settingsBackBtn" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <span class="settings-head-title">Settings</span>
+      </header>
+      <div class="settings-body">
+        <div class="settings-section">
+          <div class="settings-section-title">Account</div>
+          <div class="settings-group">
+            <div class="settings-row" id="signOutRow">
+              <div class="settings-row-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </div>
+              <div class="settings-row-text">
+                <div class="settings-row-label">Sign out</div>
+                <div class="settings-row-desc">End your session</div>
+              </div>
+              <div class="settings-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Data</div>
+          <div class="settings-group">
+            <div class="settings-row" id="clearChatsRow">
+              <div class="settings-row-icon red">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </div>
+              <div class="settings-row-text">
+                <div class="settings-row-label red">Clear all chats</div>
+                <div class="settings-row-desc">Permanently erase conversation history</div>
+              </div>
+              <div class="settings-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Info</div>
+          <div class="settings-group">
+            <div class="settings-row" id="privacyRow">
+              <div class="settings-row-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div class="settings-row-text"><div class="settings-row-label">Privacy Policy</div><div class="settings-row-desc">How we handle your data</div></div>
+              <div class="settings-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+            <div class="settings-row" id="helpRow">
+              <div class="settings-row-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+              <div class="settings-row-text"><div class="settings-row-label">Help & Support</div><div class="settings-row-desc">FAQ and contact</div></div>
+              <div class="settings-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+            <div class="settings-row" id="aboutRow">
+              <div class="settings-row-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+              <div class="settings-row-text"><div class="settings-row-label">About</div><div class="settings-row-desc">EimemesChat AI · v2.0</div></div>
+              <div class="settings-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-footer">EimemesChat AI · 2026</div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- LOGIN MODAL — hidden by default, JS shows it only when confirmed logged out -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2 class="gradient-title">EimemesChat AI</h2>
+    <div class="login-sub" id="loginSub">Create your account to get started</div>
+
+    <input class="form-field" type="email"    id="emailInput"    placeholder="Email"    autocomplete="email">
+    <input class="form-field" type="password" id="passwordInput" placeholder="Password" autocomplete="current-password">
+
+    <button class="btn-primary" id="emailSignupBtn" disabled>Create Account</button>
+    <button class="btn-primary" id="emailLoginBtn"  disabled style="display:none">Sign In</button>
+
+    <div class="divider-line">or</div>
+
+    <button class="btn-secondary" id="googleLoginBtn" disabled>
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#4285F4" d="M24 9.5c3.19 0 5.38 1.38 6.62 2.53l4.88-4.76C32.48 4.1 28.58 2 24 2 14.82 2 7.07 7.71 4.04 15.53l5.68 4.41C11.36 13.77 17.18 9.5 24 9.5z"/>
+        <path fill="#34A853" d="M46 24.5c0-1.57-.14-2.73-.43-3.91H24v7.38h12.72C36.19 31.31 33.68 34 30.36 35.62l5.52 4.28C40.93 36.08 46 30.86 46 24.5z"/>
+        <path fill="#FBBC05" d="M9.72 28.63A14.5 14.5 0 0 1 9.5 24c0-1.61.28-3.17.78-4.62l-5.68-4.41A23.96 23.96 0 0 0 2 24c0 3.87.93 7.53 2.57 10.76l5.15-6.13z"/>
+        <path fill="#EA4335" d="M24 46c4.97 0 9.15-1.64 12.21-4.46l-5.52-4.28C28.93 38.68 26.65 39.5 24 39.5c-6.82 0-12.64-4.27-14.28-10.87l-5.15 6.13C7.07 42.29 14.82 46 24 46z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div class="agree-row">
+      <input type="checkbox" id="agreeCheckbox">
+      <label for="agreeCheckbox">
+        I agree to the <a href="#" id="termsLink">Terms</a> and <a href="#" id="privacyLink">Privacy Policy</a>
+      </label>
+    </div>
+
+    <span class="auth-toggle" id="toggleMode">Already have an account? Sign in</span>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════
+     SCRIPT
+══════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import {
+  getAuth, signInWithPopup, GoogleAuthProvider,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import {
+  getFirestore, collection, query, orderBy, limit,
+  onSnapshot, addDoc, updateDoc, doc, getDoc,
+  getDocs, writeBatch, arrayUnion
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+/* ── Firebase config ──────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_AUTH_DOMAIN",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth  = getAuth(fbApp);
+const db    = getFirestore(fbApp);
+const gauth = new GoogleAuthProvider();
+
+// Ensure session survives page refresh
+setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+/* ── Constants ────────────────────────────────────────────────── */
+const MAX_MSGS      = 100;
+const MAX_CONVS     = 50;
+const AI_TIMEOUT_MS = 30000; // 30 s hard timeout on AI fetch
+
+/* ── State ────────────────────────────────────────────────────── */
+let currentUser   = null;
+let currentConvId = null;
+let conversations = [];
+let unsubConvs    = null;
+let unsubMsgs     = null;
+let isSending     = false;
+let chipsUsed     = localStorage.getItem('ec_chips_used') === 'true';
+
+/* ── DOM refs ─────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const loadingScreen  = $('loadingScreen');
+const sidebar        = $('sidebar');
+const sidebarMask    = $('sidebarMask');
+const closeSidebarBtn= $('closeSidebarBtn');
+const menuBtn        = $('menuBtn');
+const newChatBtn     = $('newChatBtn');
+const topbarNewChat  = $('topbarNewChat');
+const historyList    = $('historyList');
+const topbarTitle    = $('topbarTitle');
+const messagesInner  = $('messagesInner');
+const messagesWrap   = $('messagesWrap');
+const messageInput   = $('messageInput');
+const sendBtn        = $('sendBtn');
+const chatView       = $('chatView');
+const settingsView   = $('settingsView');
+const settingsBtn    = $('settingsBtn');
+const settingsBackBtn= $('settingsBackBtn');
+const signOutRow     = $('signOutRow');
+const clearChatsRow  = $('clearChatsRow');
+const privacyRow     = $('privacyRow');
+const helpRow        = $('helpRow');
+const aboutRow       = $('aboutRow');
+const loginOverlay   = $('loginOverlay');
+const emailInput     = $('emailInput');
+const passwordInput  = $('passwordInput');
+const emailLoginBtn  = $('emailLoginBtn');
+const emailSignupBtn = $('emailSignupBtn');
+const googleLoginBtn = $('googleLoginBtn');
+const agreeCheckbox  = $('agreeCheckbox');
+const termsLink      = $('termsLink');
+const privacyLink    = $('privacyLink');
+const authError      = $('authError');
+const toggleMode     = $('toggleMode');
+const loginSub       = $('loginSub');
+const toast          = $('toast');
+
+/* ── Utilities ────────────────────────────────────────────────── */
+
+function showToast(msg, dur = 3500) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), dur);
+}
+
+function getTime() {
+  const d = new Date();
+  return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const getUserConvsRef = () => currentUser
+  ? collection(db,'users',currentUser.uid,'conversations') : null;
+
+const getConvRef = id => currentUser
+  ? doc(db,'users',currentUser.uid,'conversations',id) : null;
+
+/* Dismiss the loading screen after Firebase first resolves */
+function hideLoader() {
+  loadingScreen.classList.add('gone');
+  setTimeout(() => loadingScreen.style.display = 'none', 300);
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────── */
+
+const openSidebar  = () => { sidebar.classList.add('open');    sidebarMask.classList.add('show');    };
+const closeSidebar = () => { sidebar.classList.remove('open'); sidebarMask.classList.remove('show'); };
+
+menuBtn.addEventListener('click', openSidebar);
+closeSidebarBtn.addEventListener('click', closeSidebar);
+sidebarMask.addEventListener('click', closeSidebar);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+
+/* ── Views ────────────────────────────────────────────────────── */
+
+function showView(el) {
+  [chatView, settingsView].forEach(v => v.classList.remove('active'));
+  el.classList.add('active');
+}
+settingsBtn.addEventListener('click', () => { closeSidebar(); showView(settingsView); });
+settingsBackBtn.addEventListener('click', () => showView(chatView));
+
+/* ── Welcome screen ───────────────────────────────────────────── */
+
+const CHIPS = [
+  { label:'Write a professional email',  prompt:'Help me write a professional email' },
+  { label:'Explain quantum computing',   prompt:'Explain quantum computing simply' },
+  { label:'Debug my code',              prompt:'Help me debug my code' },
+  { label:'Plan a trip to Tokyo',        prompt:'Plan a 5-day trip to Tokyo' },
+];
+
+function getWelcomeHTML() {
+  const chips = chipsUsed ? '' : `
+    <div class="chips" id="chipsRow">
+      ${CHIPS.map(c => `<button class="chip" data-prompt="${escHtml(c.prompt)}">${escHtml(c.label)}</button>`).join('')}
+    </div>`;
+  return `
+    <div class="welcome" id="welcomeSection">
+      <div class="welcome-mark">E</div>
+      <div class="welcome-title gradient-title">EimemesChat AI</div>
+      <div class="welcome-sub">How can I help you today?</div>
+      ${chips}
+    </div>`;
+}
+
+function attachChipListeners() {
+  document.querySelectorAll('#chipsRow .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      messageInput.value = chip.dataset.prompt;
+      autoResize(); updateSendBtn(); sendMessage();
+    });
+  });
+}
+
+/* ── Message rendering ────────────────────────────────────────── */
+
+function renderMarkdown(text) {
+  try { return marked.parse(text, { breaks:true, gfm:true }); }
+  catch(e) { return escHtml(text).replace(/\n/g,'<br>'); }
+}
+
+function appendUserMessage(text, time) {
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `
+    <div>
+      <div class="msg-body">${escHtml(text)}</div>
+      <div class="msg-meta"><span class="msg-time">${time || getTime()}</span></div>
+    </div>`;
+  messagesInner.appendChild(row);
+  scrollToBottom();
+}
+
+function appendAIMessage(text, time, model) {
+  const row  = document.createElement('div');
+  row.className = 'msg-row ai';
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+  body.innerHTML = renderMarkdown(text);
+
+  body.querySelectorAll('pre').forEach(pre => {
+    const code = pre.querySelector('code');
+    const lang = (code?.className.match(/language-(\w+)/) || [])[1] || '';
+    const wrap = document.createElement('div');
+    wrap.className = 'code-block';
+    wrap.innerHTML = `
+      <div class="code-block-head">
+        <span class="code-lang">${lang || 'code'}</span>
+        <button class="copy-btn">Copy</button>
+      </div>`;
+    pre.parentNode.replaceChild(wrap, pre);
+    wrap.appendChild(pre);
+    wrap.querySelector('.copy-btn').addEventListener('click', function() {
+      navigator.clipboard.writeText(pre.innerText)
+        .then(() => {
+          this.textContent = 'Copied!'; this.classList.add('copied');
+          setTimeout(() => { this.textContent = 'Copy'; this.classList.remove('copied'); }, 2000);
+        })
+        .catch(() => showToast('Could not copy.'));
+    });
+  });
+
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = `
+    <span class="msg-time">${time || getTime()}</span>
+    ${model ? `<span class="model-badge">${escHtml(model)}</span>` : ''}`;
+  body.appendChild(meta);
+
+  row.innerHTML = `<div class="ai-avatar">E</div>`;
+  row.appendChild(body);
+  messagesInner.appendChild(row);
+  scrollToBottom();
+}
+
+function showTyping() {
+  removeTyping();
+  const row = document.createElement('div');
+  row.className = 'typing-row'; row.id = 'typingIndicator';
+  row.innerHTML = `
+    <div class="ai-avatar">E</div>
+    <div class="typing-dots">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>`;
+  messagesInner.appendChild(row);
+  scrollToBottom();
+}
+function removeTyping() { $('typingIndicator')?.remove(); }
+
+function displayMessages(messages) {
+  messagesInner.innerHTML = '';
+  if (!messages || messages.length === 0) {
+    messagesInner.innerHTML = getWelcomeHTML();
+    attachChipListeners();
+  } else {
+    messages.forEach(m => {
+      if (m.role === 'user') appendUserMessage(m.content, m.time);
+      else appendAIMessage(m.content, m.time, m.model);
+    });
+  }
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => { messagesWrap.scrollTop = messagesWrap.scrollHeight; });
+}
+
+/* ── Chat history ─────────────────────────────────────────────── */
+
+function renderHistory() {
+  historyList.innerHTML = '';
+  if (!conversations.length) {
+    historyList.innerHTML = '<div class="history-empty">No conversations yet</div>'; return;
+  }
+  conversations.forEach(conv => {
+    const item = document.createElement('div');
+    item.className = 'history-item' + (conv.id === currentConvId ? ' active' : '');
+    item.textContent = conv.title || 'New conversation';
+    item.dataset.id = conv.id;
+    item.addEventListener('click', () => { loadConversation(conv.id); closeSidebar(); });
+    historyList.appendChild(item);
+  });
+}
+
+/* ── Firestore subscriptions ──────────────────────────────────── */
+
+function subscribeConvs() {
+  if (!currentUser) return;
+  const q = query(getUserConvsRef(), orderBy('updatedAt','desc'), limit(MAX_CONVS));
+  unsubConvs = onSnapshot(q, snap => {
+    conversations = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderHistory();
+
+    // FIX: never auto-load a conversation — always show welcome on fresh load
+    if (!currentConvId) {
+      displayMessages([]);
+      topbarTitle.textContent = 'EimemesChat';
+    }
+    // If currently viewed conv was deleted remotely, go back to welcome
+    if (currentConvId && !conversations.find(c => c.id === currentConvId)) {
+      currentConvId = null;
+      if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+      displayMessages([]);
+      topbarTitle.textContent = 'EimemesChat';
+    }
+  }, err => console.error('Conversations snapshot error:', err));
+}
+
+function subMessages(convId) {
+  if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+  if (!convId || !currentUser) return;
+  unsubMsgs = onSnapshot(getConvRef(convId), snap => {
+    if (!snap.exists()) {
+      currentConvId = null; displayMessages([]);
+      topbarTitle.textContent = 'EimemesChat'; return;
+    }
+    const data = snap.data();
+    displayMessages(data.messages || []);
+    topbarTitle.textContent = data.title || 'New conversation';
+    renderHistory();
+  }, err => {
+    console.error('Messages snapshot error:', err);
+    removeTyping();
+    showToast('Connection lost. Reconnecting…');
+  });
+}
+
+function loadConversation(id) {
+  if (currentConvId === id) return;
+  currentConvId = id;
+  subMessages(id);
+}
+
+/* ── New chat ─────────────────────────────────────────────────── */
+
+async function createNewChat() {
+  if (!currentUser) return null;
+  if (conversations.length >= MAX_CONVS) {
+    showToast(`Maximum ${MAX_CONVS} conversations reached.`); return null;
+  }
+  try {
+    const ref = await addDoc(getUserConvsRef(), {
+      title:'New conversation',
+      createdAt:new Date(), updatedAt:new Date(), messages:[]
+    });
+    currentConvId = ref.id;
+    subMessages(ref.id);
+    closeSidebar();
+    return ref.id;
+  } catch(err) {
+    console.error('createNewChat:', err);
+    showToast('Could not create conversation. Try again.');
+    return null;
+  }
+}
+
+newChatBtn.addEventListener('click', () => createNewChat());
+topbarNewChat.addEventListener('click', () => createNewChat());
+
+/* ── Send message ─────────────────────────────────────────────── */
+
+async function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text || isSending || !currentUser) return;
+
+  isSending = true; updateSendBtn();
+
+  if (!chipsUsed) {
+    chipsUsed = true;
+    localStorage.setItem('ec_chips_used','true');
+  }
+
+  $('welcomeSection')?.remove();
+
+  if (!currentConvId) {
+    const id = await createNewChat();
+    if (!id) { isSending = false; updateSendBtn(); return; }
+  }
+
+  const convRef = getConvRef(currentConvId);
+  const conv    = conversations.find(c => c.id === currentConvId);
+
+  if (conv?.messages?.length >= MAX_MSGS) {
+    showToast(`Max ${MAX_MSGS} messages reached. Start a new chat.`);
+    isSending = false; updateSendBtn(); return;
+  }
+
+  // Save user message to Firestore
+  const userMsg = { role:'user', content:text, time:getTime() };
+  try {
+    await updateDoc(convRef, { messages:arrayUnion(userMsg), updatedAt:new Date() });
+  } catch(err) {
+    console.error('Save user msg:', err);
+    const msg = err.code === 'permission-denied'
+      ? 'Permission denied. Please sign out and back in.'
+      : 'Failed to send message. Check your connection.';
+    showToast(msg);
+    isSending = false; updateSendBtn(); return;
+  }
+
+  // Auto-title after first message
+  if (!conv?.messages?.length) {
+    const title = text.slice(0,50) + (text.length > 50 ? '…' : '');
+    updateDoc(convRef, { title }).catch(console.error);
+  }
+
+  messageInput.value = '';
+  autoResize(); updateSendBtn();
+  showTyping();
+
+  // AI fetch with hard timeout
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  try {
+    const snap    = await getDoc(convRef);
+    const history = snap.exists() ? (snap.data().messages || []).slice(-20) : [];
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ message:text, history })
+    });
+
+    clearTimeout(timer);
+    removeTyping();
+
+    if (res.status === 429) {
+      showToast('AI is busy right now. Please wait a moment and try again.'); return;
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}). Please try again.`); return;
+    }
+
+    const data  = await res.json();
+    const aiMsg = { role:'assistant', content:data.reply, time:getTime(), model:data.model || '' };
+    await updateDoc(convRef, { messages:arrayUnion(aiMsg), updatedAt:new Date() });
+
+  } catch(err) {
+    clearTimeout(timer);
+    removeTyping();
+    if (err.name === 'AbortError')
+      showToast('Request timed out. The AI took too long — please try again.');
+    else if (err.code === 'permission-denied')
+      showToast('Permission denied. Please sign out and back in.');
+    else {
+      console.error('sendMessage fetch error:', err);
+      showToast('Connection error. Check your internet and try again.');
+    }
+  } finally {
+    isSending = false; updateSendBtn();
+  }
+}
+
+/* ── Input helpers ────────────────────────────────────────────── */
+
+function autoResize() {
+  messageInput.style.height = 'auto';
+  messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+}
+function updateSendBtn() {
+  sendBtn.disabled = messageInput.value.trim().length === 0 || isSending;
+}
+
+messageInput.addEventListener('input', () => { autoResize(); updateSendBtn(); });
+messageInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+sendBtn.addEventListener('click', sendMessage);
+
+/* ── Clear chats ──────────────────────────────────────────────── */
+
+clearChatsRow.addEventListener('click', async () => {
+  if (!currentUser) return;
+  if (!confirm('Delete all conversations permanently? This cannot be undone.')) return;
+  try {
+    const snap  = await getDocs(getUserConvsRef());
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    currentConvId = null;
+    if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+    displayMessages([]);
+    topbarTitle.textContent = 'EimemesChat';
+    showToast('All chats cleared.');
+  } catch(err) {
+    console.error(err);
+    showToast('Failed to clear chats. Try again.');
+  }
+});
+
+/* ── Settings rows ────────────────────────────────────────────── */
+
+signOutRow.addEventListener('click',  () => signOut(auth).catch(console.error));
+privacyRow.addEventListener('click',  () => window.open('https://example.com/privacy','_blank'));
+helpRow.addEventListener('click',     () => window.open('https://example.com/help','_blank'));
+aboutRow.addEventListener('click',    () => window.open('https://example.com/about','_blank'));
+
+/* ── Login modal ──────────────────────────────────────────────── */
+
+let isSignUp = true; // signup first by default
+
+function setAuthButtons(on) {
+  emailLoginBtn.disabled  = !on;
+  emailSignupBtn.disabled = !on;
+  googleLoginBtn.disabled = !on;
+}
+function showAuthError(msg) { authError.textContent = msg; }
+function clearAuthError()   { authError.textContent = ''; }
+
+agreeCheckbox.addEventListener('change', () => {
+  setAuthButtons(agreeCheckbox.checked); clearAuthError();
+});
+
+toggleMode.addEventListener('click', () => {
+  isSignUp = !isSignUp; clearAuthError();
+  if (isSignUp) {
+    emailSignupBtn.style.display = 'flex'; emailLoginBtn.style.display = 'none';
+    loginSub.textContent   = 'Create your account to get started';
+    toggleMode.textContent = 'Already have an account? Sign in';
+  } else {
+    emailLoginBtn.style.display  = 'flex'; emailSignupBtn.style.display = 'none';
+    loginSub.textContent   = 'Welcome back, sign in to continue';
+    toggleMode.textContent = 'New here? Create an account';
+  }
+});
+
+googleLoginBtn.addEventListener('click', () => {
+  if (!agreeCheckbox.checked) { showAuthError('Please agree to the terms first.'); return; }
+  signInWithPopup(auth, gauth).catch(err => showAuthError(friendlyAuthError(err.code)));
+});
+
+emailLoginBtn.addEventListener('click', () => {
+  if (!agreeCheckbox.checked) { showAuthError('Please agree to the terms first.'); return; }
+  const email = emailInput.value.trim(), pass = passwordInput.value;
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
+  signInWithEmailAndPassword(auth, email, pass)
+    .catch(err => showAuthError(friendlyAuthError(err.code)));
+});
+
+emailSignupBtn.addEventListener('click', () => {
+  if (!agreeCheckbox.checked) { showAuthError('Please agree to the terms first.'); return; }
+  const email = emailInput.value.trim(), pass = passwordInput.value;
+  if (!email)       { showAuthError('Please enter your email address.'); return; }
+  if (pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  createUserWithEmailAndPassword(auth, email, pass)
+    .catch(err => showAuthError(friendlyAuthError(err.code)));
+});
+
+termsLink.addEventListener('click',   e => { e.preventDefault(); window.open('https://example.com/terms','_blank'); });
+privacyLink.addEventListener('click', e => { e.preventDefault(); window.open('https://example.com/privacy','_blank'); });
+
+function friendlyAuthError(code) {
+  return ({
+    'auth/email-already-in-use':    'This email is already registered. Try signing in instead.',
+    'auth/invalid-email':           'Please enter a valid email address.',
+    'auth/user-not-found':          'No account found with that email.',
+    'auth/wrong-password':          'Incorrect password. Please try again.',
+    'auth/invalid-credential':      'Incorrect email or password.',
+    'auth/weak-password':           'Password must be at least 6 characters.',
+    'auth/too-many-requests':       'Too many attempts. Please wait a moment.',
+    'auth/network-request-failed':  'Network error. Check your connection.',
+    'auth/popup-closed-by-user':    'Sign-in window was closed. Please try again.',
+    'auth/cancelled-popup-request': '',
+  }[code]) ?? 'Authentication failed. Please try again.';
+}
+
+/* ── Auth state observer ──────────────────────────────────────── */
+
+// Buttons disabled until checkbox is ticked
+setAuthButtons(false);
+
+onAuthStateChanged(auth, user => {
+  // Always hide loader on first call — this is Firebase confirming auth state
+  hideLoader();
+
+  if (user) {
+    currentUser = user;
+    loginOverlay.classList.remove('show');
+
+    // Reset login form state
+    emailInput.value = ''; passwordInput.value = '';
+    agreeCheckbox.checked = false; setAuthButtons(false); clearAuthError();
+
+    if (unsubConvs) unsubConvs();
+    subscribeConvs();
+    showView(chatView);
+  } else {
+    // Confirmed NOT logged in — now safe to show login
+    currentUser = null; currentConvId = null; conversations = [];
+    if (unsubConvs) { unsubConvs(); unsubConvs = null; }
+    if (unsubMsgs)  { unsubMsgs();  unsubMsgs  = null; }
+    historyList.innerHTML = '';
+    displayMessages([]);
+    topbarTitle.textContent = 'EimemesChat';
+    loginOverlay.classList.add('show');
+  }
+});
+</script>
+</body>
+</html>
